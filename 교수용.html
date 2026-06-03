@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="심사평">
+<title>심사평 — 교수용</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+:root {
+  --bg: #F7F5EF;
+  --surface: #FFFFFF;
+  --surface2: #EFECEA;
+  --border: #DDD9CE;
+  --border2: #C4BFB0;
+  --text: #1C1A14;
+  --text2: #6E6A58;
+  --text3: #AAA590;
+  --accent: #1A48D0;
+  --accent-dk: #1238A8;
+  --accent-bg: #EAF0FF;
+  --gold: #9A6C00;
+  --gold-bg: #FFF8E0;
+  --gold-border: #E8C96A;
+  --green: #1A6E3C;
+  --green-bg: #E8F5EE;
+  --green-border: #9ECFB4;
+  --red: #B82828;
+  --canvas-bg: #FFFFFE;
+  --font: 'Noto Sans KR', -apple-system, sans-serif;
+}
+
+html, body {
+  width: 100%; height: 100%;
+  background: var(--bg);
+  font-family: var(--font);
+  color: var(--text);
+  overflow: hidden;
+  position: fixed;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app { display: flex; flex-direction: column; width: 100vw; height: 100vh; height: 100dvh; }
+
+/* ════════════════════════════════
+   SETUP SCREEN
+════════════════════════════════ */
+#setup {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%;
+  background: var(--bg);
+}
+
+.setup-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 36px 32px 32px;
+  width: 100%; max-width: 460px;
+  margin: 24px;
+  box-shadow: 0 4px 40px rgba(0,0,0,.06);
+}
+
+.setup-eyebrow {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; font-weight: 700; color: var(--gold);
+  letter-spacing: 1px; text-transform: uppercase;
+  margin-bottom: 18px;
+}
+
+.setup-eyebrow::before {
+  content: '🎹';
+  font-size: 16px;
+}
+
+.setup-title { font-size: 26px; font-weight: 900; color: var(--text); margin-bottom: 6px; }
+.setup-sub { font-size: 14px; color: var(--text2); line-height: 1.7; margin-bottom: 28px; }
+
+.setup-label {
+  font-size: 11px; font-weight: 800; color: var(--text3);
+  letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; display: block;
+}
+
+.setup-select {
+  width: 100%; padding: 13px 16px;
+  border: 1.5px solid var(--border); border-radius: 12px;
+  font-size: 15px; font-weight: 600; color: var(--text);
+  background: var(--bg); margin-bottom: 20px;
+  outline: none; font-family: var(--font);
+  -webkit-appearance: none; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23AAA590' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+}
+
+.setup-select:focus { border-color: var(--accent); }
+
+.prof-grid {
+  display: grid; grid-template-columns: repeat(5, 1fr);
+  gap: 8px; margin-bottom: 24px;
+}
+
+.prof-opt {
+  padding: 12px 0; border-radius: 12px;
+  border: 1.5px solid var(--border); background: var(--bg);
+  font-size: 15px; font-weight: 800; color: var(--text2);
+  cursor: pointer; text-align: center; transition: all .15s;
+  user-select: none; -webkit-touch-callout: none;
+  font-family: var(--font);
+}
+.prof-opt.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.prof-opt:active { transform: scale(.94); }
+
+.setup-go {
+  width: 100%; padding: 15px;
+  background: var(--accent); color: #fff;
+  border: none; border-radius: 14px;
+  font-size: 16px; font-weight: 900;
+  cursor: pointer; transition: all .15s;
+  font-family: var(--font); letter-spacing: .3px;
+}
+.setup-go:active { background: var(--accent-dk); transform: scale(.98); }
+.setup-go:disabled { background: var(--border2); color: var(--text3); cursor: default; transform: none; }
+
+.setup-err {
+  font-size: 13px; color: var(--red); font-weight: 600;
+  margin-bottom: 14px; display: none;
+  padding: 10px 14px; background: #FFF0F0; border-radius: 8px;
+}
+
+/* ════════════════════════════════
+   MAIN APP
+════════════════════════════════ */
+#main { display: none; flex-direction: column; width: 100%; height: 100%; }
+
+/* HEADER */
+.hdr {
+  display: flex; align-items: center; gap: 0;
+  padding: 0 16px;
+  height: 56px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.hdr-logo {
+  font-size: 14px; font-weight: 900; color: var(--gold);
+  letter-spacing: .3px; padding-right: 14px;
+  border-right: 1px solid var(--border);
+  margin-right: 14px;
+}
+
+.student-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 14px; border-radius: 10px;
+  background: var(--gold-bg); border: 1px solid var(--gold-border);
+  cursor: pointer; transition: all .15s;
+  user-select: none; -webkit-touch-callout: none;
+}
+.student-btn:active { opacity: .75; }
+
+.sb-num {
+  font-size: 18px; font-weight: 900; color: var(--gold);
+  font-variant-numeric: tabular-nums; line-height: 1;
+}
+.sb-name { font-size: 15px; font-weight: 700; color: #7A5600; }
+.sb-caret { font-size: 10px; color: var(--gold); margin-left: 2px; }
+
+.hdr-gap { flex: 1; }
+
+.save-tag {
+  font-size: 12px; font-weight: 700;
+  padding: 4px 10px; border-radius: 6px;
+  color: var(--text3); background: transparent;
+  transition: all .2s;
+}
+.save-tag.saved { color: var(--green); background: var(--green-bg); }
+.save-tag.saving { color: var(--accent); background: var(--accent-bg); }
+
+.prof-tag {
+  margin-left: 8px;
+  font-size: 13px; font-weight: 800; color: var(--accent);
+  background: var(--accent-bg); border: 1px solid #C0CFFF;
+  border-radius: 8px; padding: 5px 12px;
+  cursor: pointer; user-select: none;
+}
+.prof-tag:active { opacity: .7; }
+
+/* RT BAR */
+.rt-bar {
+  display: flex; align-items: center; gap: 7px;
+  padding: 5px 16px;
+  background: var(--surface2); border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.rt-led { width: 7px; height: 7px; border-radius: 50%; background: var(--border2); transition: all .4s; flex-shrink: 0; }
+.rt-led.on { background: var(--green); box-shadow: 0 0 0 3px rgba(26,110,60,.18); }
+.rt-msg { font-size: 12px; color: var(--text3); font-weight: 600; }
+.rt-cur { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--text2); }
+
+/* CANVAS AREA */
+.canvas-wrap {
+  flex: 1; position: relative; overflow: hidden;
+  background: var(--canvas-bg); touch-action: none;
+}
+#cvs {
+  display: block; position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%; touch-action: none;
+}
+
+/* LINES OVERLAY */
+.lines-canvas {
+  display: block; position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%; pointer-events: none; opacity: .4;
+}
+
+/* TOOLBAR */
+.toolbar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 12px;
+  background: var(--surface); border-top: 1px solid var(--border);
+  flex-shrink: 0; overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.toolbar::-webkit-scrollbar { display: none; }
+
+.t-sep { width: 1px; height: 28px; background: var(--border); flex-shrink: 0; margin: 0 2px; }
+
+.t-btn {
+  width: 46px; height: 46px; border-radius: 11px;
+  border: 1.5px solid var(--border); background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; cursor: pointer; flex-shrink: 0;
+  transition: all .12s; user-select: none; -webkit-touch-callout: none;
+  font-family: var(--font);
+}
+.t-btn.on { background: var(--accent); border-color: var(--accent); }
+.t-btn:active { transform: scale(.9); }
+
+.c-btn {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 2.5px solid transparent; cursor: pointer; flex-shrink: 0;
+  transition: all .14s; -webkit-touch-callout: none;
+}
+.c-btn.on { border-color: var(--text); transform: scale(1.2); }
+.c-btn:active { transform: scale(1.0); }
+
+.sz-track {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+}
+.sz-preview {
+  width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.sz-circle { border-radius: 50%; background: var(--text); transition: all .12s; }
+
+input[type=range] {
+  width: 88px; height: 4px; flex-shrink: 0;
+  -webkit-appearance: none; appearance: none;
+  background: var(--border2); border-radius: 2px; outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--accent);
+  border: 3px solid #fff;
+  box-shadow: 0 1px 5px rgba(0,0,0,.2);
+}
+
+.save-btn {
+  margin-left: auto; padding: 11px 22px;
+  background: var(--accent); color: #fff;
+  border: none; border-radius: 12px;
+  font-size: 14px; font-weight: 900;
+  cursor: pointer; flex-shrink: 0;
+  transition: all .12s; font-family: var(--font);
+  user-select: none; -webkit-touch-callout: none;
+  letter-spacing: .3px;
+}
+.save-btn:active { background: var(--accent-dk); transform: scale(.96); }
+
+/* ════════════════════════════════
+   STUDENT SHEET
+════════════════════════════════ */
+.overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.48);
+  display: flex; align-items: flex-end; z-index: 80;
+  animation: ov-in .18s ease;
+}
+.overlay.gone { display: none; }
+@keyframes ov-in { from { opacity: 0; } to { opacity: 1; } }
+
+.sheet {
+  width: 100%; background: var(--surface);
+  border-radius: 22px 22px 0 0;
+  max-height: 84vh; display: flex; flex-direction: column;
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+  animation: sh-up .22s cubic-bezier(.32,.72,0,1);
+}
+@keyframes sh-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+.sheet-handle { width: 42px; height: 4px; background: var(--border2); border-radius: 2px; margin: 12px auto 0; flex-shrink: 0; }
+.sheet-title { font-size: 17px; font-weight: 900; padding: 14px 20px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+
+.sheet-scroll { overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 12px; }
+.sheet-scroll::-webkit-scrollbar { display: none; }
+
+.st-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: 8px; }
+
+.st-cell {
+  display: flex; align-items: center; gap: 9px;
+  padding: 12px 14px; border-radius: 13px;
+  border: 1.5px solid var(--border); background: var(--bg);
+  cursor: pointer; transition: all .13s;
+  user-select: none; -webkit-touch-callout: none;
+}
+.st-cell.active { background: var(--gold-bg); border-color: var(--gold-border); }
+.st-cell.done { background: var(--green-bg); border-color: var(--green-border); }
+.st-cell:active { transform: scale(.95); }
+
+.st-n { font-size: 16px; font-weight: 900; color: var(--gold); font-variant-numeric: tabular-nums; }
+.st-nm { font-size: 13px; font-weight: 700; color: var(--text); flex: 1; }
+.st-ck { font-size: 14px; color: var(--green); flex-shrink: 0; }
+
+/* CONFIRM */
+.conf-ov {
+  position: fixed; inset: 0; background: rgba(0,0,0,.52);
+  display: flex; align-items: center; justify-content: center; z-index: 120;
+}
+.conf-ov.gone { display: none; }
+.conf-box {
+  background: var(--surface); border-radius: 20px;
+  padding: 26px 28px; width: 310px; text-align: center;
+  box-shadow: 0 12px 48px rgba(0,0,0,.2);
+}
+.conf-title { font-size: 18px; font-weight: 900; margin-bottom: 8px; }
+.conf-body { font-size: 14px; color: var(--text2); line-height: 1.6; margin-bottom: 22px; }
+.conf-row { display: flex; gap: 10px; }
+.conf-btn {
+  flex: 1; padding: 13px; border-radius: 13px;
+  border: none; font-size: 15px; font-weight: 800;
+  cursor: pointer; font-family: var(--font); transition: all .12s;
+}
+.conf-btn.cancel { background: var(--surface2); color: var(--text2); }
+.conf-btn.ok { background: var(--red); color: #fff; }
+.conf-btn:active { transform: scale(.96); }
+
+/* TOAST */
+.toast {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 96px);
+  left: 50%; transform: translateX(-50%) translateY(14px);
+  background: rgba(28,26,20,.93); color: #fff;
+  padding: 12px 24px; border-radius: 24px;
+  font-size: 14px; font-weight: 700;
+  white-space: nowrap; opacity: 0;
+  transition: opacity .22s, transform .22s;
+  pointer-events: none; z-index: 200;
+}
+.toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- SETUP -->
+  <div id="setup">
+    <div class="setup-card">
+      <div class="setup-eyebrow">콩쿠르 심사평 시스템</div>
+      <div class="setup-title">교수 설정</div>
+      <div class="setup-sub">처음 한 번만 설정하면 됩니다.<br>앱을 닫았다 열어도 유지됩니다.</div>
+      <span class="setup-label">교수 번호</span>
+      <div class="prof-grid" id="prof-grid">
+        <div class="prof-opt" onclick="selProf(0)">1</div>
+        <div class="prof-opt" onclick="selProf(1)">2</div>
+        <div class="prof-opt" onclick="selProf(2)">3</div>
+        <div class="prof-opt" onclick="selProf(3)">4</div>
+        <div class="prof-opt" onclick="selProf(4)">5</div>
+      </div>
+      <div class="setup-err" id="setup-err"></div>
+      <button class="setup-go" id="setup-go" onclick="launch()">시작하기 →</button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div id="main">
+    <div class="hdr">
+      <div class="hdr-logo">🎹 심사</div>
+      <div class="student-btn" onclick="openSheet()">
+        <span class="sb-num" id="hdr-num">—</span>
+        <span class="sb-name" id="hdr-name">로딩 중</span>
+        <span class="sb-caret">▼</span>
+      </div>
+      <div class="hdr-gap"></div>
+      <div class="save-tag" id="save-tag">미저장</div>
+      <div class="prof-tag" id="prof-tag">교수 —</div>
+    </div>
+
+    <div class="rt-bar">
+      <div class="rt-led" id="rt-led"></div>
+      <div class="rt-msg" id="rt-msg">연결 중...</div>
+      <div class="rt-cur" id="rt-cur"></div>
+    </div>
+
+    <div class="canvas-wrap" id="canvas-wrap">
+      <canvas id="cvs"></canvas>
+      <canvas class="lines-canvas" id="lines-cvs"></canvas>
+    </div>
+
+    <div class="toolbar">
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="t-btn on" id="btn-pen" onclick="setTool('pen')">✏️</button>
+        <button class="t-btn" id="btn-eraser" onclick="setTool('eraser')">⬜</button>
+      </div>
+      <div class="t-sep"></div>
+      <div style="display:flex;gap:5px;flex-shrink:0">
+        <div class="c-btn on" style="background:#1C1A14" onclick="pickColor('#1C1A14')" data-c="#1C1A14"></div>
+        <div class="c-btn" style="background:#B82828" onclick="pickColor('#B82828')" data-c="#B82828"></div>
+        <div class="c-btn" style="background:#1A48D0" onclick="pickColor('#1A48D0')" data-c="#1A48D0"></div>
+        <div class="c-btn" style="background:#1A6E3C" onclick="pickColor('#1A6E3C')" data-c="#1A6E3C"></div>
+        <div class="c-btn" style="background:#7A3FB0" onclick="pickColor('#7A3FB0')" data-c="#7A3FB0"></div>
+      </div>
+      <div class="t-sep"></div>
+      <div class="sz-track">
+        <div class="sz-preview"><div class="sz-circle" id="sz-circle" style="width:4px;height:4px"></div></div>
+        <input type="range" id="sz-range" min="1" max="18" value="2" step="1" oninput="onSize(this.value)">
+      </div>
+      <div class="t-sep"></div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="t-btn" onclick="undo()" style="font-size:17px">↩</button>
+        <button class="t-btn" onclick="askClear()" style="font-size:17px;color:var(--red)">🗑</button>
+      </div>
+      <button class="save-btn" onclick="saveReview()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- STUDENT SHEET -->
+<div class="overlay gone" id="sheet-ov" onclick="closeSheet(event)">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">학생 선택</div>
+    <div class="sheet-scroll">
+      <div class="st-grid" id="st-grid"></div>
+    </div>
+    <div style="height:8px"></div>
+  </div>
+</div>
+
+<!-- CONFIRM CLEAR -->
+<div class="conf-ov gone" id="conf-ov">
+  <div class="conf-box">
+    <div class="conf-title">필기 삭제</div>
+    <div class="conf-body" id="conf-body">현재 심사평을 삭제하겠습니까?</div>
+    <div class="conf-row">
+      <button class="conf-btn cancel" onclick="closeConf()">취소</button>
+      <button class="conf-btn ok" onclick="doClear()">삭제</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── SUPABASE ─────────────────────────────────────────────
+const SB_URL = 'https://edtqvtmyzdlaeiodeuqu.supabase.co';
+const SB_KEY = 'sb_publishable__D4PlkuTNYvfDJ55DixeOA_dnEWfqrv';
+const sb = supabase.createClient(SB_URL, SB_KEY);
+
+// ── STATE ────────────────────────────────────────────────
+const LS = { g: k => localStorage.getItem(k), s: (k,v) => localStorage.setItem(k,v) };
+let profIdx = -1;
+let students = [];
+let curSnum = null;
+let tool = 'pen';
+let color = '#1C1A14';
+let brushSz = 2;
+let drawing = false;
+let lx = 0, ly = 0;
+let undoStack = [];
+const MAX_UNDO = 30;
+let savedSet = new Set();
+
+// ── CANVAS ───────────────────────────────────────────────
+const cvs = document.getElementById('cvs');
+const ctx = cvs.getContext('2d');
+const linesCvs = document.getElementById('lines-cvs');
+const lctx = linesCvs.getContext('2d');
+
+function resizeCvs() {
+  const w = document.getElementById('canvas-wrap');
+  const W = w.offsetWidth, H = w.offsetHeight;
+  const backup = cvs.toDataURL();
+  cvs.width = W; cvs.height = H;
+  linesCvs.width = W; linesCvs.height = H;
+  fillBg();
+  drawRuledLines();
+  const img = new Image();
+  img.onload = () => ctx.drawImage(img, 0, 0, W, H);
+  img.src = backup;
+}
+
+function fillBg() { ctx.fillStyle = '#FFFFFE'; ctx.fillRect(0,0,cvs.width,cvs.height); }
+
+function drawRuledLines() {
+  lctx.clearRect(0,0,linesCvs.width,linesCvs.height);
+  lctx.strokeStyle = '#D8D4C8'; lctx.lineWidth = 1;
+  const gap = 44;
+  for (let y = gap; y < linesCvs.height; y += gap) {
+    lctx.beginPath(); lctx.moveTo(0, y); lctx.lineTo(linesCvs.width, y); lctx.stroke();
+  }
+}
+
+// ── SETUP ────────────────────────────────────────────────
+let selPi = -1;
+function selProf(i) {
+  selPi = i;
+  document.querySelectorAll('.prof-opt').forEach((el,j) => el.classList.toggle('on', j===i));
+}
+
+// 저장된 설정 복원
+window.addEventListener('DOMContentLoaded', () => {
+  const pi = LS.g('prof_idx');
+  if (pi !== null) { selPi = parseInt(pi); selProf(selPi); }
+});
+
+async function launch() {
+  if (selPi < 0) { showErr('교수 번호를 선택해주세요'); return; }
+  const btn = document.getElementById('setup-go');
+  btn.disabled = true; btn.textContent = '연결 중...';
+  try {
+    const { error } = await sb.from('students').select('num').limit(1);
+    if (error) throw error;
+    profIdx = selPi;
+    LS.s('prof_idx', profIdx);
+    await initMain();
+  } catch(e) {
+    showErr('서버 연결에 실패했습니다. 인터넷을 확인해주세요.');
+    btn.disabled = false; btn.textContent = '시작하기 →';
+  }
+}
+
+function showErr(msg) {
+  const el = document.getElementById('setup-err');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+// ── MAIN INIT ────────────────────────────────────────────
+async function initMain() {
+  document.getElementById('setup').style.display = 'none';
+  document.getElementById('main').style.display = 'flex';
+  document.getElementById('prof-tag').textContent = `교수 ${profIdx+1}`;
+
+  // 학생 목록
+  const { data } = await sb.from('students').select('*').order('num');
+  students = data || [];
+
+  // 내 저장 목록
+  const { data: rv } = await sb.from('reviews').select('student_num').eq('prof_index', profIdx);
+  if (rv) rv.forEach(r => savedSet.add(r.student_num));
+
+  // 캔버스
+  resizeCvs();
+  pushUndo();
+
+  // 현재 학생
+  await loadCurrentState();
+
+  // 실시간
+  subscribe();
+}
+
+async function loadCurrentState() {
+  const { data } = await sb.from('current_state').select('student_num').eq('id',1).single();
+  if (data) await loadStudent(data.student_num);
+  else if (students[0]) await loadStudent(students[0].num);
+}
+
+// ── REALTIME ─────────────────────────────────────────────
+function subscribe() {
+  sb.channel('prof-channel')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'current_state' }, p => {
+      const n = p.new?.student_num;
+      if (n && n !== curSnum) {
+        loadStudent(n);
+        const s = students.find(x => x.num === n);
+        if (s) { rtMsg(`관리자 → ${s.num}번 ${s.name}`); toast(`${s.num}번 ${s.name}으로 변경됨`); }
+      }
+    })
+    .subscribe(st => {
+      const led = document.getElementById('rt-led');
+      const msg = document.getElementById('rt-msg');
+      if (st === 'SUBSCRIBED') { led.classList.add('on'); msg.textContent = '실시간 연결됨'; }
+      else { led.classList.remove('on'); msg.textContent = '연결 중...'; }
+    });
+}
+
+// ── STUDENT LOAD ─────────────────────────────────────────
+async function loadStudent(num) {
+  curSnum = num;
+  const s = students.find(x => x.num === num);
+  if (!s) return;
+
+  document.getElementById('hdr-num').textContent = s.num + '번';
+  document.getElementById('hdr-name').textContent = s.name;
+  document.getElementById('rt-cur').textContent = `현재: ${s.num}번 ${s.name}`;
+  updateSaveTag();
+  buildGrid();
+
+  // 저장된 필기 로드
+  fillBg();
+  const { data } = await sb.from('reviews')
+    .select('image_data').eq('student_num', num).eq('prof_index', profIdx).single();
+  if (data?.image_data) {
+    const img = new Image();
+    img.onload = () => { ctx.drawImage(img, 0, 0, cvs.width, cvs.height); undoStack=[]; pushUndo(); };
+    img.src = data.image_data;
+  } else {
+    undoStack = []; pushUndo();
+  }
+}
+
+// ── DRAWING ──────────────────────────────────────────────
+function pt(e) {
+  const r = cvs.getBoundingClientRect();
+  return { x: (e.clientX-r.left)*(cvs.width/r.width), y: (e.clientY-r.top)*(cvs.height/r.height) };
+}
+function ptT(touch) { return pt({clientX:touch.clientX, clientY:touch.clientY}); }
+
+cvs.addEventListener('mousedown', e => { if(e.button!==0)return; drawing=true; const p=pt(e); lx=p.x;ly=p.y; });
+cvs.addEventListener('mousemove', e => { if(!drawing)return; const p=pt(e); stroke(lx,ly,p.x,p.y); lx=p.x;ly=p.y; });
+cvs.addEventListener('mouseup', () => { if(drawing){drawing=false;pushUndo();} });
+cvs.addEventListener('mouseleave', () => { if(drawing){drawing=false;pushUndo();} });
+
+cvs.addEventListener('touchstart', e => {
+  e.preventDefault(); drawing=true;
+  const p=ptT(e.touches[0]); lx=p.x;ly=p.y;
+}, {passive:false});
+cvs.addEventListener('touchmove', e => {
+  e.preventDefault(); if(!drawing)return;
+  const t=e.touches[0];
+  const force = (t.force>0)?t.force:0.5;
+  const p=ptT(t); stroke(lx,ly,p.x,p.y,force); lx=p.x;ly=p.y;
+}, {passive:false});
+cvs.addEventListener('touchend', e => { e.preventDefault(); if(drawing){drawing=false;pushUndo();} }, {passive:false});
+
+function stroke(x1,y1,x2,y2,force=0.5) {
+  const w = tool==='eraser' ? brushSz*7 : brushSz*(0.5+force*1.8);
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2);
+  ctx.strokeStyle = tool==='eraser' ? '#FFFFFE' : color;
+  ctx.lineWidth = w; ctx.lineCap='round'; ctx.lineJoin='round';
+  ctx.stroke();
+}
+
+function pushUndo() {
+  undoStack.push(cvs.toDataURL());
+  if (undoStack.length > MAX_UNDO) undoStack.shift();
+}
+
+function undo() {
+  if (undoStack.length <= 1) return;
+  undoStack.pop();
+  const img = new Image();
+  img.onload = () => { fillBg(); ctx.drawImage(img,0,0,cvs.width,cvs.height); };
+  img.src = undoStack[undoStack.length-1];
+}
+
+// ── TOOLS ────────────────────────────────────────────────
+function setTool(t) {
+  tool = t;
+  document.getElementById('btn-pen').classList.toggle('on', t==='pen');
+  document.getElementById('btn-eraser').classList.toggle('on', t==='eraser');
+}
+function pickColor(c) {
+  color=c; setTool('pen');
+  document.querySelectorAll('.c-btn').forEach(b => b.classList.toggle('on', b.dataset.c===c));
+}
+function onSize(v) {
+  brushSz = parseInt(v);
+  const s = Math.max(3, Math.min(brushSz*2.4, 28));
+  const el = document.getElementById('sz-circle');
+  el.style.width=s+'px'; el.style.height=s+'px';
+}
+
+// ── SAVE ─────────────────────────────────────────────────
+async function saveReview() {
+  if (!curSnum) return;
+  setSaveTag('saving', '저장 중...');
+  const data = cvs.toDataURL('image/jpeg', 0.85);
+  const { error } = await sb.from('reviews').upsert({
+    student_num: curSnum, prof_index: profIdx,
+    image_data: data, updated_at: new Date().toISOString()
+  }, { onConflict: 'student_num,prof_index' });
+
+  if (error) { setSaveTag('', '저장 실패'); toast('저장 실패. 다시 시도해주세요.'); return; }
+  savedSet.add(curSnum);
+  setSaveTag('saved', '저장됨 ✓');
+  buildGrid();
+  const s = students.find(x=>x.num===curSnum);
+  toast(`${s?.num}번 ${s?.name} 저장 완료 ✓`);
+}
+
+function updateSaveTag() {
+  if (savedSet.has(curSnum)) setSaveTag('saved','저장됨 ✓');
+  else setSaveTag('','미저장');
+}
+function setSaveTag(cls, txt) {
+  const el = document.getElementById('save-tag');
+  el.className = 'save-tag' + (cls?' '+cls:'');
+  el.textContent = txt;
+}
+
+// ── CLEAR ────────────────────────────────────────────────
+function askClear() {
+  const s = students.find(x=>x.num===curSnum);
+  document.getElementById('conf-body').textContent = `${s?.num}번 ${s?.name} 심사평을 삭제하겠습니까?`;
+  document.getElementById('conf-ov').classList.remove('gone');
+}
+function closeConf() { document.getElementById('conf-ov').classList.add('gone'); }
+async function doClear() {
+  closeConf(); fillBg(); undoStack=[]; pushUndo();
+  if (curSnum) {
+    await sb.from('reviews').delete().eq('student_num',curSnum).eq('prof_index',profIdx);
+    savedSet.delete(curSnum);
+    updateSaveTag(); buildGrid();
+  }
+  toast('필기가 삭제됐습니다');
+}
+
+// ── SHEET ────────────────────────────────────────────────
+function openSheet() { buildGrid(); document.getElementById('sheet-ov').classList.remove('gone'); }
+function closeSheet(e) { document.getElementById('sheet-ov').classList.add('gone'); }
+
+function buildGrid() {
+  const el = document.getElementById('st-grid');
+  if (!el) return;
+  el.innerHTML = students.map(s => {
+    const active = s.num===curSnum, done = savedSet.has(s.num);
+    return `<div class="st-cell${active?' active':done?' done':''}" onclick="pickStudent(${s.num})">
+      <span class="st-n">${s.num}</span>
+      <span class="st-nm">${s.name}</span>
+      ${done?'<span class="st-ck">✓</span>':''}
+    </div>`;
+  }).join('');
+}
+
+async function pickStudent(num) {
+  closeSheet();
+  if (num===curSnum) return;
+  await loadStudent(num);
+  const s=students.find(x=>x.num===num);
+  toast(`${s?.num}번 ${s?.name}`);
+}
+
+// ── TOAST & RT ───────────────────────────────────────────
+let toastT;
+function toast(msg) {
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('on');
+  clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('on'),2200);
+}
+let rtT;
+function rtMsg(msg) {
+  const el=document.getElementById('rt-msg');
+  el.textContent=msg;
+  clearTimeout(rtT); rtT=setTimeout(()=>{ el.textContent='실시간 연결됨'; },3500);
+}
+
+window.addEventListener('resize', resizeCvs);
+</script>
+</body>
+</html>
